@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.20.0)
+find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(z54_q1_generator)
+target_sources(app PRIVATE src/main.c)
+# Build the 2M variant with: -- -DPHY2M=1  (default is 1M)
+if(PHY2M)
+  target_compile_definitions(app PRIVATE GEN_PHY_2M=1)
+endif()

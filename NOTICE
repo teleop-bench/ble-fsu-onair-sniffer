@@ -1,0 +1,11 @@
+BLE-bench
+Copyright 2026 teleop-bench
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository contains modifications to the Zephyr RTOS project
+(https://github.com/zephyrproject-rtos/zephyr) under `zephyr-patches/` and
+published, already applied, on the `fsu-m0` branch of the fork at
+https://github.com/teleop-bench/zephyr. Zephyr is itself licensed under the
+Apache License, Version 2.0; those files retain the copyrights of their
+original Zephyr authors.
