@@ -36,18 +36,28 @@ def _apply_2m_overrides():
     A.PREAMBLE_AA_OFF        = PREAMBLE_AA_OFF_2M
     Q3.Q3_EXPECT_STEP_TICKS  = EXPECT_STEP_2M
     Q3.Q3_ABBA_EXPECT_STEP   = EXPECT_STEP_2M
-    Q3.Q3_REG_MIN, Q3.Q3_REG_MAX = 52, 52
+    Q3.Q3_ABBA_ARM_SEQ       = ('f150', 'f52', 'f52', 'f150')   # 2M ABBA order (1M was f150/f100)
+    Q3.Q3_REG_MIN, Q3.Q3_REG_MAX = 52, 150   # request integrity: matches fsu-f52.conf [52..150]
+    Q3.Q3_REG_PHYS = 0x2                      # 2M mask (firmware .phys = PHY_2M_MASK); 1M arm used 0x1
     Q3.EXPECT_PRE_US, Q3.EXPECT_POST_US = 150, 52
+    A.EXPECT_PHY = 2             # the link IS 2M for the 2M FSU arm (config-binding gate)
     # step_tol (4), baseline_tol (2), null_threshold (64), IQR (16), phys/types (0x3/0x3)
     # are PHY-independent and stay frozen at their analyze_q3 values.
 
-def q3_2m_analyze(obs, cf, pf, calib_frozen=FROZEN_BASELINE_2M, **kw):
-    _apply_2m_overrides()
-    return Q3.q3_analyze(obs, cf, pf, calib_frozen=calib_frozen, **kw)
+def _calib_default(calib_frozen, kw):
+    # Use the built-in 2783 default ONLY when no provenance-bound --calib is given.
+    # (A non-None default would shadow calib_path, so q3_analyze would never load it.)
+    if calib_frozen is None and not kw.get('calib_path'):
+        return FROZEN_BASELINE_2M
+    return calib_frozen
 
-def q3_2m_steady_analyze(obs, cf, pf, arm, calib_frozen=FROZEN_BASELINE_2M, **kw):
+def q3_2m_analyze(obs, cf, pf, calib_frozen=None, **kw):
     _apply_2m_overrides()
-    return Q3.q3_steady_analyze(obs, cf, pf, arm, calib_frozen=calib_frozen, **kw)
+    return Q3.q3_analyze(obs, cf, pf, calib_frozen=_calib_default(calib_frozen, kw), **kw)
+
+def q3_2m_steady_analyze(obs, cf, pf, arm, calib_frozen=None, **kw):
+    _apply_2m_overrides()
+    return Q3.q3_steady_analyze(obs, cf, pf, arm, calib_frozen=_calib_default(calib_frozen, kw), **kw)
 
 def _selftest():
     _apply_2m_overrides()
@@ -73,18 +83,22 @@ if __name__ == '__main__':
     a = sys.argv[1:]
     if not a or a[0] == '--selftest':
         sys.exit(_selftest())
-    # CLI mirrors analyze_q3.py: [--steady f150|f52] [--calib PATH] obs cf pf
+    # CLI mirrors analyze_q3.py: obs cf pf with --steady/--calib in ANY position.
+    # (The old flags-must-precede-positionals parser silently dropped a trailing
+    # --calib -- exactly how the runner passes it -- so the calib never loaded.)
     steady_arm = None
     kw = {}
-    if a and a[0] == '--steady':
-        steady_arm = a[1]; a = a[2:]
+    pos = []
     i = 0
-    while i < len(a) and a[i].startswith('--'):
-        if a[i] == '--calib':
+    while i < len(a):
+        if a[i] == '--steady':
+            steady_arm = a[i + 1]; i += 2
+        elif a[i] == '--calib':
             kw['calib_path'] = a[i + 1]; i += 2
+        elif a[i].startswith('--'):
+            i += 2                        # skip unknown flag+value (guard-ticks/min-plateau = frozen defaults)
         else:
-            i += 2
-    pos = a[i:]
+            pos.append(a[i]); i += 1
     if steady_arm:
         _r, rc = q3_2m_steady_analyze(pos[0], pos[1], pos[2], steady_arm, **kw)
     else:

@@ -5,7 +5,16 @@ Endpoints nRF54L15; observer nRF52832. Calib gap-proxy-calibration-q3-r2 (frozen
 Outputs were ORIGINALLY collected outside the repo and COPIED into this durable archive
 (byte-for-byte verified; see SHA256SUMS); every attempt is preserved.
 
-## Claim hierarchy
+## 2M/52 µs — also formally accepted (2026-09-07)
+
+The 2M step (150→52 µs) later passed the **same protocol** as the 1M step below: **3 primary mid-step
+AGREEMENT cells** (`|d|≤1`, on-air==on-chip `|d|≤0.06`) + a **4-cell ABBA-CONFIRMED** (drift-cancelled
+step 1567.75 t, `|d|=0.25`), all non-smoke / clean-tree / provenance-bound, via the ported 2M tooling
+in `analysis/` (`analyze_q2_2m`, `assert_fsu_config_2m`, `combine_calib_2m`, `combine_abba_2m`; frozen
+2M calib 2791 t = the Q2-established 150.50 µs). Full evidence + firmware live in the benchmark repo:
+`debug-evidence/q3-2m-accept-20260906/`. Still observer-based, not independently pro-analyzer qualified.
+
+## Claim hierarchy (1M, 150→100 µs)
 
 ### PRIMARY — two accepted, reset-isolated within-connection 150→100 µs reductions (rev-5 firmware)
 | cell | RF step | on-chip | cross-val | retention | AA |

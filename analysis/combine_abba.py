@@ -105,12 +105,12 @@ def check_digests(m):
 def _current_lineage():
     return {
         'analyze_q2.py': os.path.join(HERE, 'analyze_q2.py'),
-        'analyze_q3.py': os.path.join(HERE, 'analyze_q3.py'),
+        'analyze_q3.py': ANALYZE_Q3,
         'q2_run.py': os.path.join(HERE, 'q2_run.py'),
         'combine_abba.py': os.path.join(HERE, 'combine_abba.py'),
         'combine_calib.py': os.path.join(HERE, 'combine_calib.py'),
-        'assert_fsu_config.py': os.path.join(HERE, '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config.py'),
-        'Q2-ACCEPTANCE-PROTOCOL.md': os.path.join(HERE, '..', 'debug-evidence', 'observer-q1-20260810', 'Q2-ACCEPTANCE-PROTOCOL.md'),
+        'assert_fsu_config.py': ASSERT_FSU,
+        'Q2-ACCEPTANCE-PROTOCOL.md': os.path.join(ROOT, 'debug-evidence', 'observer-q1-20260810', 'Q2-ACCEPTANCE-PROTOCOL.md'),
         'Q3-ACCEPTANCE-PROTOCOL.md': Q3PROTO,
     }
 
@@ -153,9 +153,10 @@ def check_homogeneity(mans):
     for arm, builds in by_arm.items():
         if len(set(builds)) != 1:
             return False, f'{arm} cells used DIFFERENT central images (arm is not the only variable)'
-    f150_c, f100_c = by_arm['f150'][0], by_arm['f100'][0]
-    if f150_c == f100_c:
-        return False, 'f150 and f100 central images are identical (registered arm did not change the image)'
+    reduced = next(a for a in ARM_SEQ if a != 'f150')   # 'f100' at 1M, 'f52' at 2M
+    f150_c, red_c = by_arm['f150'][0], by_arm[reduced][0]
+    if f150_c == red_c:
+        return False, f'f150 and {reduced} central images are identical (registered arm did not change the image)'
     # distinct reset-isolated connections
     aas = [m.get('connection', {}).get('AA') for m in mans]
     if len(set(aas)) != N_CELLS:
@@ -189,8 +190,13 @@ def check_campaign(mans):
     return True, 'ok'
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-Q3PROTO = os.path.join(HERE, '..', 'debug-evidence', 'observer-q3-20260811', 'Q3-ACCEPTANCE-PROTOCOL.md')
-ASSERT_FSU = os.path.join(HERE, '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config.py')
+ROOT = os.path.normpath(os.path.join(HERE, '..'))   # repo root (this file is apps/misc/q2-central/)
+Q3PROTO = os.path.join(ROOT, 'debug-evidence', 'observer-q3-20260811', 'Q3-ACCEPTANCE-PROTOCOL.md')
+# the analyzer whose sha the cells recorded under key 'analyze_q3.py'. combine_abba_2m
+# overrides this to analyze_q3_2m.py (the 2M runner records that file under the 1M key).
+ANALYZE_Q3 = os.path.join(HERE, 'analyze_q3.py')
+# assert_fsu_config lives at the repo root; combine_abba_2m overrides this to the 2M asserter.
+ASSERT_FSU = os.path.join(ROOT, 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config.py')
 
 # archived-firmware name -> where its digest lives in the manifest. Binds the BINARY
 # lineage: the combiner RE-RESOLVES firmware/<name> and rehashes it, not just the digit.

@@ -269,8 +269,8 @@ def q3_steady_analyze(obs, cf, pf, arm, calib_frozen=None, calib_path=None, quie
     the single-plateau median against the calibrated expectation (150us=frozen baseline,
     100us=frozen-800) and the arm-specific control plane. Returns (result, rc)."""
     pr = (lambda *a: None) if quiet else print
-    if arm not in ('f150', 'f100'):
-        return _inc(pr, f"steady arm must be f150|f100 (got {arm})")
+    if arm not in ('f150', 'f100', 'f52'):
+        return _inc(pr, f"steady arm must be f150|f100|f52 (got {arm})")
     o = A.parse_obs(obs)
     ctx, creason = A.validate_common(o, cf, pf, pr)
     if ctx is None:
@@ -354,7 +354,7 @@ def q3_steady_analyze(obs, cf, pf, arm, calib_frozen=None, calib_path=None, quie
         return _inc(pr, f'boundary-slop: {bsr}')
     # on-chip: EXACTLY ONE bin at the expected spacing; lifecycle SESSION-bound to the
     # connection (f150) / request (f100) session -- not merely internally consistent.
-    ocv, ocr = Q.q3_onchip_check(ptext, conn_aa, onchip_sess, [expect_us])
+    ocv, ocr = Q.q3_onchip_check(ptext, conn_aa, onchip_sess, [expect_us], expect_phy=A.EXPECT_PHY)
     if ocv != 'complete':
         return _inc(pr, f'on-chip: {ocr}')
     onb = Q.q3_onchip_bins(ptext)
@@ -462,7 +462,7 @@ def q3_analyze(obs, cf, pf, calib_frozen=None, calib_path=None,
             return _inc(pr, f'{name} host {h} outside anchored capture [{Ts},{Te}]')
 
     # (5) ON-CHIP -- strict lifecycle + boundary slops (rerun, not counted).
-    ocv, ocr = Q.q3_onchip_check(ptext, conn_aa, req_sess, [EXPECT_PRE_US, EXPECT_POST_US])
+    ocv, ocr = Q.q3_onchip_check(ptext, conn_aa, req_sess, [EXPECT_PRE_US, EXPECT_POST_US], expect_phy=A.EXPECT_PHY)
     if ocv != 'complete':
         return _inc(pr, f'on-chip: {ocr}')
     bsv, bsr, slops = Q.q3_boundary_slops(otext, ptext)

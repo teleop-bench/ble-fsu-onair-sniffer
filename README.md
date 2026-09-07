@@ -35,9 +35,11 @@ Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-
 - **Q3 — FSU physically measured on-air:**
   - **1M, 150→100 µs:** ABBA-confirmed (`~49.94 µs, |d|=1`) and **formally accepted** — see
     `evidence-sample/RESULTS.md`.
-  - **2M, 150→52 µs:** observer measured **150.06 → 52.06 µs**, matching the 2M calibration exactly,
-    plus a goodput ABBA confirming 52 µs on-air + a **+20 % throughput** effect (this cell is a
-    *quarantined smoke* — not run through the full acceptance-promotion protocol).
+  - **2M, 150→52 µs:** now **formally accepted** — 3 primary mid-step AGREEMENT cells (`|d|≤1`,
+    on-air==on-chip `|d|≤0.06`) + a 4-cell **ABBA-CONFIRMED** (drift-cancelled step 1567.75 t, `|d|=0.25`),
+    all non-smoke / clean-tree / provenance-bound, via the ported 2M tooling (`assert_fsu_config_2m`,
+    `combine_calib_2m`, `combine_abba_2m`). See `evidence-sample/RESULTS.md`. (Still observer-based,
+    not independently pro-analyzer qualified.)
 
 ## Build & run (Zephyr west workspace)
 ```

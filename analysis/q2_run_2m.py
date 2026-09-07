@@ -370,7 +370,7 @@ def main():
     ap.add_argument('--calib', default='')       # near/far: provenance-bound frozen ref (gap-proxy-calibration.json)
     # NOTE: no --tifs-dev. near/far MUST use a --calib artifact (ESTABLISHED). The
     # raw integer path exists only inside analyze_q2's self-test.
-    ap.add_argument('--obs-app', default=os.path.expanduser('~/Desktop/develop/zenoh-pico-ble-test/pca10040-radio-observer'))
+    ap.add_argument('--obs-app', default=os.path.expanduser('~/Desktop/develop/zenoh-pico-ble-test/apps/nrf52/pca10040-radio-observer'))
     ap.add_argument('--board', default='nrf52dk/nrf52832'); ap.add_argument('--skip-obs-flash', action='store_true')
     ap.add_argument('--obs-prebuilt-build', default='')  # preserved observer BUILD DIR -> flash --no-rebuild (stable hex)
     ap.add_argument('--central-build', default='')   # endpoint build dirs; FLASHED this run so the hashed
@@ -395,8 +395,10 @@ def main():
     ap.add_argument('--q3-contract-deviation', default=None,
                     help='REQUIRED reason if a Q3 knob differs from frozen; forces a non-accept '
                          '(the analyzer can never return METRICS-OK under a deviation)')
-    ap.add_argument('--q3-arm', choices=('f100', 'f150'), default='f100',
-                    help='central request arm for the FSU config assertion (f100=100/150, f150=150/0)')
+    ap.add_argument('--q3-arm', choices=('f100', 'f150', 'f52'), default='f100',
+                    help='central request arm for the FSU config assertion (f100=100/150, f150=150/0, '
+                         'f52=52/150 the 2M mid-step arm). f52 is an executable mid-step arm like f100; '
+                         'the 2M analyzer (analyze_q3_2m) fixes the expected step at 150->52 = 1568 t.')
     # Q3 STEADY-STATE (ABBA confirmation arm): ONE plateau per cell, no mid-step trigger.
     # f150 = no-request 150us control; f100 = FSU completed + settled BEFORE the window.
     ap.add_argument('--q3-steady', action='store_true',
@@ -406,6 +408,11 @@ def main():
     ap.add_argument('--abba-seq', type=int, default=None,
                     help='position 0..3 of this cell in the frozen f150/f100/f100/f150 ABBA block')
     a = {k.replace('-', '_'): v for k, v in vars(ap.parse_args()).items()}
+    # This is the 2M runner: rebind the in-process analyze_q3/analyze_q2 globals to 2M so
+    # the runner's OWN gates (abba_binding_ok's ARM_SEQ, the recorded q3_contract) match the
+    # 2M analyzer subprocess. The analyzer subprocess re-applies these itself.
+    import analyze_q3_2m as _q32m
+    _q32m._apply_2m_overrides()
     if a['q3'] and not a['calib'] and not a['smoke']:
         print('[abort] --q3 requires --calib (the analyzer gates the plateau against '
               'the frozen 150us baseline)'); sys.exit(2)
@@ -580,7 +587,7 @@ def main():
             print(f'[q3-steady] param-update gate INCOMPLETE ({pu_reason}) -> capture finishes, QUARANTINED')
         else:
             print(f'[q3-steady] conn-param update confirmed on both endpoints: {pu} (final interval frozen)')
-        if pu_ok and a['q3_arm'] == 'f100':
+        if pu_ok and a['q3_arm'] in ('f100', 'f52'):
             t_f = hostms(); C.send(b'F')
             cp = None
             if not wait_for(cf,'Q3FSU-REQ',5, after=t_f):
@@ -597,7 +604,7 @@ def main():
                 if v != 'complete': cp = f'peer: {r}'
             a['q3_cp_reason'] = cp
         settle_s = Q3_STEADY_SETTLE_MS_DEFAULT / 1000.0 + STEADY_SETTLE_PAD_S
-        kind = 'post-FSU' if a['q3_arm'] == 'f100' else 'sham (symmetry)'
+        kind = 'post-FSU' if a['q3_arm'] in ('f100', 'f52') else 'sham (symmetry)'
         print(f'[q3-steady] {a["q3_arm"]}: settling {settle_s:.1f}s ({kind}) then START snaps -> GO')
         time.sleep(settle_s)
     # START snaps -- for steady, only NOW (after update/FSU/settle); for mid-step/Q2, here.
@@ -679,15 +686,16 @@ def main():
             ctext, ptext, otext = open(cf).read(), open(pf).read(), open(of).read()
             if steady:
                 # SINGLE on-chip bin: f150 -> [150] bound to the connection snapshot
-                # session; f100 -> [100] bound to the FSU REQUEST session.
+                # session; reduced arm (f100/f52) -> [requested min] bound to the FSU
+                # REQUEST session (100 at 1M, 52 at 2M).
                 if a['q3_arm'] == 'f150':
                     m = re.search(r'Q2SNAP role=C seq=0 .*?sess=(\d+)', ctext)
                     req_sess = int(m.group(1)) if m else None
                     expect = [150]
                 else:
-                    m = re.search(r'Q3FSU-REQ .*?sess=(\d+)', ctext)
+                    m = re.search(r'Q3FSU-REQ .*?sess=(\d+).*?min=(\d+)', ctext)
                     req_sess = int(m.group(1)) if m else None
-                    expect = [100]
+                    expect = [int(m.group(2))] if m else None   # f100->100, f52->52
             else:
                 m = re.search(r'Q3FSU-REQ .*?sess=(\d+).*?min=(\d+)', ctext)
                 req_sess = int(m.group(1)) if m else None
@@ -698,7 +706,7 @@ def main():
             a['q3_boundary_slops'] = slops
             if bv != 'complete': a['q3_onchip_reason'] = a['q3_onchip_reason'] or br
             if a['q3_onchip_reason'] is None:
-                bins_desc = ({'f150': '150', 'f100': '100'}[a['q3_arm']] if steady else '150/100')
+                bins_desc = ({'f150': '150', 'f100': '100', 'f52': '52'}[a['q3_arm']] if steady else '150/52')
                 print(f'[q3] on-chip OK (one lifecycle; drop=0; {bins_desc}@1M bin(s); boundary slops {slops})')
     ok = wait_for(of,'Q2-DONE',50, after=t_or)  # ~1230 records dump over UART takes ~12s
     time.sleep(1); [x.close() for x in (C,P,O)]
@@ -734,7 +742,9 @@ def main():
         if a['q3_contract_deviation']:
             cmd += ['--contract-deviation', a['q3_contract_deviation']]
     else:
-        cmd = [sys.executable, os.path.join(here,'analyze_q2.py'),
+        # plain-Q2 (no --q3) on the 2M runner IS a 2M capture -> the 2M analyzer
+        # (rebinds the +383 gap_proxy offset + EXPECT_PHY=2). Used for 2M calibration controls.
+        cmd = [sys.executable, os.path.join(here,'analyze_q2_2m.py'),
                of, cf, pf, '--mode', a['mode'], '--near', a['near']]
         if a['calib']:                  # provenance-bound frozen ref (near/far REQUIRES this)
             cmd += ['--calib', a['calib']]
@@ -786,7 +796,7 @@ def q3_fsu_config_gate(central_cfg, periph_cfg, central_arm):
     (ok, reason, text, script_sha256). Any failure -> 'q3-fsu-config-invalid'. A
     missing .config fails the assertion (exit != 0), so it is caught here too."""
     script = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                           '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config.py'))
+                                           '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config_2m.py'))
     sha = _sha256(script)
     lines, ok = [], True
     for cfg, arm in ((central_cfg, central_arm), (periph_cfg, 'periph')):
@@ -799,7 +809,7 @@ def q3_fsu_config_gate(central_cfg, periph_cfg, central_arm):
 
 # the ONLY Q3 modes the promotion accepts: mid-step is f100-only; steady is f150/f100.
 def _q3_registered(arm, steady):
-    return (arm in ('f150', 'f100')) if steady else (arm == 'f100')
+    return (arm in ('f150', 'f52')) if steady else (arm == 'f52')
 
 def abba_binding_ok(campaign_id, seq, arm):
     """the accepting steady path MUST be bound to the ABBA campaign: nonempty campaign
@@ -934,7 +944,7 @@ def snapshot_firmware(outdir, obs_bd, central_bd, periph_bd, skip_obs, arm):
                 return False, f'{dev}.{ext} did not hash to a valid digest', snap
             snap[f'{dev}.{ext}'] = h
     script = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                           '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config.py'))
+                                           '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config_2m.py'))
     for cfg, aarm in (('central.config', arm), ('periph.config', 'periph')):
         r = subprocess.run([sys.executable, script, os.path.join(fwd, cfg), '--arm', aarm],
                            capture_output=True, text=True)

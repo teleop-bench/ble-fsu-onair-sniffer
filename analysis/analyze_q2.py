@@ -44,6 +44,7 @@ NF_SEP_MIN = 20
 NF_FAR_BAND = (-85, -70)
 EXPECT_CHANS = {10, 11}
 EXPECT_MAP = "000c000000"
+EXPECT_PHY = 1                 # 1M by default; the 2M port (analyze_q3_2m._apply_2m_overrides) rebinds -> 2
 CAP_TOL = 1500                 # host-measured dur must match the observer's DECLARED cap +/- this
                                # (arrival jitter only; the observer's k_msleep is ms-accurate)
 MAX_SLOP_MS = 5000             # gross-error sanity ceiling per boundary
@@ -413,7 +414,7 @@ def validate_common(o, clog, plog, pr):
         B += [('observer AA==connection', cfg['aa'] == conn['aa'], f"0x{cfg['aa']:08x}/0x{conn['aa']:08x}"),
               ('observer CRCInit==connection', cfg['crcinit'] == conn['crcinit'], ''),
               ('observer channel in {10,11}', cfg['ch'] in EXPECT_CHANS, cfg['ch']),
-              ('observer PHY==1M', cfg['phy'] == 1, cfg['phy']),
+              (f'observer PHY=={EXPECT_PHY}M', cfg['phy'] == EXPECT_PHY, cfg['phy']),
               ('endpoint AA==observer AA', cw['aa'] == cfg['aa'], '')]
     B += [('central AA==periph AA', cw['aa'] == pw['aa'], ''),
           ('distinct DEVICEIDs (C!=P)', cr['dev'] != prd['dev'], f"{cr['dev']}/{prd['dev']}"),
