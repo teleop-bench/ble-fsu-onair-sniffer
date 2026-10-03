@@ -190,7 +190,7 @@ def check_campaign(mans):
     return True, 'ok'
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, '..'))   # repo root (this file is apps/misc/q2-central/)
+ROOT = os.path.normpath(os.path.join(HERE, '..', '..', '..'))   # repo root (this file is apps/misc/q2-central/)
 Q3PROTO = os.path.join(ROOT, 'debug-evidence', 'observer-q3-20260811', 'Q3-ACCEPTANCE-PROTOCOL.md')
 # the analyzer whose sha the cells recorded under key 'analyze_q3.py'. combine_abba_2m
 # overrides this to analyze_q3_2m.py (the 2M runner records that file under the 1M key).

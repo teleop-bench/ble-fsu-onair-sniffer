@@ -4,8 +4,8 @@ A **novel tool to physically measure Bluetooth 6.0 Frame Space Update (FSU) inte
 (tIFS) on the air** — not just decode the LLCP negotiation, but timestamp the actual RF and confirm
 the controller really shortened the gap. Built because **no public tool measures achieved on-air FSU
 spacing** (Wireshark tracks the FSU opcodes `0x3B/0x3C` but not the µs fields), and a professional
-protocol analyzer (Ellisys / Frontline) costs **thousands of dollars**. This does it with **~$50 of
-Nordic dev kits**.
+protocol analyzer (Ellisys / Frontline) costs on the order of **tens of thousands of dollars**. The
+instrument here is a **~$50 nRF52 DK**.
 
 Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-bench/BLE-bench)
 (the proof-of-work history lives there).
@@ -24,7 +24,7 @@ Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-
   `assert_fsu_config.py` (gate the FSU Kconfig before flashing).
 - **`protocols/`** — the frozen acceptance protocols (Q1 retention/discrimination, Q2 live-link
   calibration, Q3 FSU physical measurement) that promotion is gated on.
-- **`docs/`** — `INSTRUMENT.md` (the capture design) and `SNIFFER.md` (rig + what a sniffer buys you).
+- **`docs/INSTRUMENT.md`** — the capture design.
 
 ## It's validated (not just a script)
 - **Q0/Q1 — pipeline + resolution:** timestamps grounded to ±1 tick (62.5 ns); the observer
@@ -41,15 +41,42 @@ Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-
     `combine_calib_2m`, `combine_abba_2m`). See `evidence-sample/RESULTS.md`. (Still observer-based,
     not independently pro-analyzer qualified.)
 
-## Build & run (Zephyr west workspace)
+## Build & run
+**Measuring FSU on a live link (the main use)** needs two nRF54L15-DK endpoints running the patched
+open Zephyr controller with Frame Space Update. Those endpoint apps and the controller patches live in
+[BLE-bench](https://github.com/teleop-bench/BLE-bench) (Zephyr fork:
+[teleop-bench/zephyr](https://github.com/teleop-bench/zephyr), branch `fsu-m0-v442`), so run live-link
+measurements from a BLE-bench checkout. One command detects the three boards, builds all images,
+flashes, captures and analyzes:
 ```
-# Observer (nRF52832 DK / PCA10040); add -DPHY2M=1 to watch a 2M link
-west build -b nrf52dk/nrf52832 observer -- -DQ2=1     # Q2 runtime-configured (AA/CRCInit/channel over UART)
-# Generator (nRF54L15-DK), calibration pairs
-west build -b nrf54l15dk/nrf54l15/cpuapp generator -- -DQ1=1 -DPHY2M=1
-# then drive + analyze
-python3 analysis/q2_run.py ...      # see analysis/ + protocols/ for the exact recipes
+tools/observer-smoke.sh 2m      # run in a BLE-bench checkout
 ```
+A pass prints `METRICS-OK`: at 2M the on-air gap steps 150.4 → 52.4 µs (1568 ticks ±4), cross-checked
+against the peripheral's on-chip timer. See BLE-bench's REPRODUCE.md, *On-air FSU observer*, for pass
+criteria and the accepted-cell (mid-step / ABBA) recipes.
+
+**Building the firmware here** (Zephyr west workspace):
+```
+# Observer (nRF52832 DK / PCA10040), live connection, runtime-configured by the runner:
+west build -b nrf52dk/nrf52832 observer -- -DQ2=1 -DAIRTIME_MIN_TICKS=256   # 2M link
+west build -b nrf52dk/nrf52832 observer -- -DQ2=1                           # 1M link (see note)
+# Calibration with synthetic packet pairs: observer + nRF54L15 generator, same PHY on both
+west build -b nrf52dk/nrf52832 observer -- -DQ1=1 [-DPHY2M=1]
+west build -b nrf54l15dk/nrf54l15/cpuapp generator -- [-DPHY2M=1]
+```
+A fresh 1M live-link measurement currently can't be analyzed: the frozen 1M calibration is bound
+to the analyzer versions that predate the 2M port, so it needs a new calibration campaign first. The
+accepted 1M result stands on its archived record.
+
+`-DAIRTIME_MIN_TICKS=256` is required at 2M (a 2M empty PDU is ~320 ticks; the default 1M floor drops
+it and breaks the gap chain). The observer prints on the nRF52 DK's J-Link **vcom 0** port, gated on
+DTR; a healthy boot ends with `CONFIG-READY Q2`.
+
+**`analysis/` is a byte-identical mirror** of BLE-bench's `apps/misc/q2-central/` tooling (plus the
+two config asserters from `zephyr-patches/fsu-m0-series/` and `analyze_q1.py`), synced from BLE-bench `main` @ `77e7fc0` (2026-10-03).
+The runners and combiners resolve paths relative to a BLE-bench checkout, and the combiners hash-bind
+these exact files to the archived evidence (editing them breaks re-verification), so run them from
+BLE-bench. The copies here are for review.
 
 ## Caveats (read before trusting a result)
 - **It is loss-limited** (a single antenna, offset from the link): its PER is an *upper bound*, and on
