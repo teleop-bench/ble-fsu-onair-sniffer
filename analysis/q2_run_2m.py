@@ -796,7 +796,7 @@ def q3_fsu_config_gate(central_cfg, periph_cfg, central_arm):
     (ok, reason, text, script_sha256). Any failure -> 'q3-fsu-config-invalid'. A
     missing .config fails the assertion (exit != 0), so it is caught here too."""
     script = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                           '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config_2m.py'))
+                                           '..', '..', '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config_2m.py'))
     sha = _sha256(script)
     lines, ok = [], True
     for cfg, arm in ((central_cfg, central_arm), (periph_cfg, 'periph')):
@@ -944,7 +944,7 @@ def snapshot_firmware(outdir, obs_bd, central_bd, periph_bd, skip_obs, arm):
                 return False, f'{dev}.{ext} did not hash to a valid digest', snap
             snap[f'{dev}.{ext}'] = h
     script = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                           '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config_2m.py'))
+                                           '..', '..', '..', 'zephyr-patches', 'fsu-m0-series', 'assert_fsu_config_2m.py'))
     for cfg, aarm in (('central.config', arm), ('periph.config', 'periph')):
         r = subprocess.run([sys.executable, script, os.path.join(fwd, cfg), '--arm', aarm],
                            capture_output=True, text=True)
@@ -971,7 +971,7 @@ def archive(a, of, cf, pf, aa, crc, mp, ch, verdict, analyzer_rc, cell_rc, quara
     here = os.path.dirname(__file__)
     commit = subprocess.run(['git','rev-parse','HEAD'], capture_output=True, text=True,
                             cwd=here).stdout.strip() or 'UNKNOWN'
-    proto = os.path.join(here, '..', 'debug-evidence', 'observer-q1-20260810', 'Q2-ACCEPTANCE-PROTOCOL.md')
+    proto = os.path.join(here, '..', '..', '..', 'debug-evidence', 'observer-q1-20260810', 'Q2-ACCEPTANCE-PROTOCOL.md')
     man = {
         'verdict': verdict, 'analyzer_exit': analyzer_rc, 'cell_exit': cell_rc,
         'quarantine_reason': quarantine_reason,
@@ -1008,7 +1008,7 @@ def archive(a, of, cf, pf, aa, crc, mp, ch, verdict, analyzer_rc, cell_rc, quara
         # bind the Q3 acceptance protocol + the EXACT structured contract this run was
         # analyzed under (analyzer/runner/calib hashes are already in sha256 above).
         import analyze_q3 as _Q3
-        q3proto = os.path.join(here, '..', 'debug-evidence', 'observer-q3-20260811',
+        q3proto = os.path.join(here, '..', '..', '..', 'debug-evidence', 'observer-q3-20260811',
                                'Q3-ACCEPTANCE-PROTOCOL.md')
         man['sha256']['Q3-ACCEPTANCE-PROTOCOL.md'] = _sha256(q3proto)
         man['q3_contract'] = _Q3.q3_contract(a.get('q3_guard_ticks', Q3_GUARD_TICKS_DEFAULT),
@@ -1119,7 +1119,7 @@ def selftest():
               and m2['sha256'].get('assert_fsu_config.py') == 'ab'*32))
     shutil.rmtree(d2, ignore_errors=True)
     # runner-enforced FSU config gate (arm-aware) against the ARCHIVED provenance configs
-    prov = os.path.join(os.path.dirname(__file__), '..', 'zephyr-patches', 'fsu-m0-series', 'provenance')
+    prov = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'zephyr-patches', 'fsu-m0-series', 'provenance')
     f100c = os.path.join(prov, 'central-fsu-f100.config'); f150c = os.path.join(prov, 'central-fsu-f150.config')
     perc = os.path.join(prov, 'periph-fsu.config')
     if os.path.exists(f100c) and os.path.exists(perc):
@@ -1225,7 +1225,7 @@ def selftest():
               decide_verdict(0, True, True, q3=True, q3_arm='f100', firmware_archive_valid=False)
               == ('QUARANTINED', 3, 'firmware-archive-invalid')))
     import tempfile as _tf, shutil as _sh
-    _prov = os.path.join(os.path.dirname(__file__), '..', 'zephyr-patches', 'fsu-m0-series', 'provenance')
+    _prov = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'zephyr-patches', 'fsu-m0-series', 'provenance')
     def _mkbd(root, dev, cfg):
         z = os.path.join(root, dev, 'zephyr'); os.makedirs(z, exist_ok=True)
         open(os.path.join(z, 'zephyr.hex'), 'w').write(f'HEX-{dev}')
