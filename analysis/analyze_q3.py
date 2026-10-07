@@ -563,7 +563,7 @@ def q3_analyze(obs, cf, pf, calib_frozen=None, calib_path=None,
     tifs_pre = (med_pre - A.PREAMBLE_AA_OFF) / A.TICKS_PER_US
     tifs_post = (med_post - A.PREAMBLE_AA_OFF) / A.TICKS_PER_US
 
-    # cross-val (us): on-air step/16 vs on-chip 150-100 bin-median delta.
+    # cross-val (us): on-air step/16 vs on-chip PRE-POST bin-median delta (150-100 at 1M, 150-52 at 2M).
     onb = {b['tifs']: b for b in Q.q3_onchip_bins(ptext)}
     onchip_step = onb[EXPECT_PRE_US]['med'] - onb[EXPECT_POST_US]['med']
     xval_d = abs(step / A.TICKS_PER_US - onchip_step)
@@ -592,7 +592,7 @@ def q3_analyze(obs, cf, pf, calib_frozen=None, calib_path=None,
     pr(f'  POST median gap_proxy = {med_post}t (tIFS~={tifs_post:.2f}us)')
     pr(f'PRIMARY step = {step}t vs {Q3_EXPECT_STEP_TICKS}t : |d|={abs(step-Q3_EXPECT_STEP_TICKS)} '
        f'(<= {Q3_STEP_TOL}) class={cls}')
-    pr(f'  cross-val: on-air {step/A.TICKS_PER_US:.2f}us vs on-chip 150-100 delta {onchip_step}us '
+    pr(f'  cross-val: on-air {step/A.TICKS_PER_US:.2f}us vs on-chip {EXPECT_PRE_US}-{EXPECT_POST_US} delta {onchip_step}us '
        f'|d|={xval_d:.2f} (<= {Q3_XVAL_TOL_US}us) {"OK" if xval_ok else "DISAGREE"}')
     pr(f'  [secondary/diagnostic] independent change point ({Q3_CHANGEPOINT_METHOD}, '
        f'>= {min_plateau}/side) @ {None if cp_tick is None else round(cp_tick)}t inside window? {cp_inside}')
