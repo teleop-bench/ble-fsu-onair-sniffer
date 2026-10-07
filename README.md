@@ -7,7 +7,7 @@ spacing** (Wireshark tracks the FSU opcodes `0x3B/0x3C` but not the µs fields),
 protocol analyzer (Ellisys / Frontline) costs on the order of **tens of thousands of dollars**. The
 instrument here is a **~$50 nRF52 DK**.
 
-Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-bench/BLE-bench)
+Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-bench/BLE-bench-pub)
 (the proof-of-work history lives there).
 
 ## What it is
@@ -44,7 +44,7 @@ Extracted from the [BLE throughput/latency benchmark](https://github.com/teleop-
 ## Build & run
 **Measuring FSU on a live link (the main use)** needs two nRF54L15-DK endpoints running the patched
 open Zephyr controller with Frame Space Update. Those endpoint apps and the controller patches live in
-[BLE-bench](https://github.com/teleop-bench/BLE-bench) (Zephyr fork:
+[BLE-bench](https://github.com/teleop-bench/BLE-bench-pub) (Zephyr fork:
 [teleop-bench/zephyr](https://github.com/teleop-bench/zephyr), branch `fsu-m0-v442`), so run live-link
 measurements from a BLE-bench checkout. One command detects the three boards, builds all images,
 flashes, captures and analyzes:
