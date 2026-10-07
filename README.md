@@ -1,5 +1,7 @@
 # BLE-6 FSU on-air sniffer
 
+Human blog overview and context here: https://teleopbench.com.
+
 A **novel tool to physically measure Bluetooth 6.0 Frame Space Update (FSU) inter-frame spacing
 (tIFS) on the air** — not just decode the LLCP negotiation, but timestamp the actual RF and confirm
 the controller really shortened the gap. Built because **no public tool measures achieved on-air FSU
